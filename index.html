@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gantt Oficial · Piloto SkandIA · NOLA LABS</title>
+<style>
+  :root{
+    --ink:#0F172A; --ink2:#1E293B; --paper:#F1F5F9; --card:#FFFFFF;
+    --muted:#64748B; --muted2:#94A3B8; --line:#E2E8F0; --line2:#CBD5E1;
+    --accent:#0D9488; --accent-soft:#CCFBF1;
+    --f1:#6366F1; --f1s:#E0E7FF;   /* Fase 1 */
+    --f2:#D97706; --f2s:#FEF3C7;   /* Fase 2 julio */
+    --f3:#059669; --f3s:#D1FAE5;   /* Fase 3 agosto */
+    --ok:#16A34A; --warn:#D97706;
+    --shadow:0 1px 2px rgba(15,23,42,.06),0 4px 16px rgba(15,23,42,.06);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:var(--paper); line-height:1.45; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1240px; margin:0 auto; padding:22px 20px 80px;}
+
+  /* Header */
+  header.app{display:flex; flex-wrap:wrap; align-items:center; gap:16px; justify-content:space-between; margin-bottom:18px;}
+  .brand{display:flex; align-items:center; gap:14px;}
+  .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,var(--ink),var(--accent));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;letter-spacing:.5px;flex:0 0 auto}
+  .brand h1{font-size:19px;margin:0;font-weight:800;letter-spacing:-.2px}
+  .brand .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+  .meta b{color:var(--ink);font-weight:700}
+
+  /* Toolbar */
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 18px}
+  .btn{border:1px solid var(--line2);background:#fff;color:var(--ink2);padding:8px 13px;border-radius:10px;
+    font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:.15s}
+  .btn:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .btn.accent{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.accent:hover{background:#0b766c}
+  .btn.ghost:hover{background:#FEE2E2;color:#B91C1C;border-color:#FCA5A5}
+  .spacer{flex:1}
+  .save-state{font-size:12px;color:var(--muted2)}
+
+  /* Dashboard */
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;box-shadow:var(--shadow)}
+  .kpi .lab{font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700}
+  .kpi .val{font-size:26px;font-weight:800;margin-top:6px;letter-spacing:-.5px}
+  .kpi .hint{font-size:12px;color:var(--muted);margin-top:3px}
+  .ring{--p:0;width:54px;height:54px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*1%),#E5E7EB 0);
+    display:flex;align-items:center;justify-content:center;float:right;margin-top:-6px}
+  .ring i{width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;
+    font-style:normal;font-weight:800;font-size:13px}
+
+  /* Phase timeline strip */
+  .phaseStrip{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .phaseStrip h3{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+  .weeks{display:grid;grid-template-columns:repeat(10,1fr);gap:6px}
+  .wk{border-radius:10px;padding:8px 6px;text-align:center;position:relative;border:1px solid var(--line);background:#fff;cursor:pointer;transition:.15s}
+  .wk:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+  .wk .n{font-size:11px;font-weight:800;color:var(--muted)}
+  .wk .d{font-size:10px;color:var(--muted2);margin:2px 0 6px}
+  .wk .mini{height:6px;border-radius:4px;background:#EEF2F7;overflow:hidden}
+  .wk .mini i{display:block;height:100%;border-radius:4px;background:var(--accent)}
+  .wk .pct{font-size:10px;color:var(--muted);margin-top:4px;font-weight:700}
+  .wk.cur{outline:2px solid var(--accent);outline-offset:1px}
+  .wk.p1{border-top:3px solid var(--f1)} .wk.p2{border-top:3px solid var(--f2)} .wk.p3{border-top:3px solid var(--f3)}
+  .legendRow{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:12px;color:var(--muted)}
+  .legendRow .dot{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle}
+
+  /* Tabs + filters */
+  .barRow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .tabs{display:inline-flex;background:#E8EDF3;border-radius:10px;padding:3px}
+  .tab{border:none;background:transparent;padding:7px 15px;border-radius:8px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer}
+  .tab.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .chip{border:1px solid var(--line2);background:#fff;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink2);display:inline-flex;align-items:center;gap:6px}
+  .chip .cdot{width:9px;height:9px;border-radius:50%}
+  .chip.off{opacity:.4}
+  label.toggle{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);cursor:pointer;margin-left:4px}
+
+  /* Sprint accordion */
+  .sprint{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;box-shadow:var(--shadow);overflow:hidden}
+  .sprint > .head{display:flex;align-items:center;gap:14px;padding:14px 16px;cursor:pointer;user-select:none}
+  .sprint .badge{flex:0 0 auto;width:44px;height:44px;border-radius:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-weight:800;line-height:1}
+  .sprint .badge small{font-size:8.5px;font-weight:700;opacity:.9;text-transform:uppercase;letter-spacing:.5px}
+  .sprint .badge b{font-size:17px}
+  .sprint .htxt{flex:1;min-width:0}
+  .sprint .htxt .t{font-weight:800;font-size:14.5px}
+  .sprint .htxt .g{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .sprint .hp{flex:0 0 auto;text-align:right;min-width:150px}
+  .sprint .hp .bar{height:8px;width:140px;background:#EEF2F7;border-radius:5px;overflow:hidden;margin-left:auto}
+  .sprint .hp .bar i{display:block;height:100%;background:var(--accent);border-radius:5px;transition:width .25s}
+  .sprint .hp .lab{font-size:11px;color:var(--muted);margin-top:4px;font-weight:700}
+  .sprint .caret{flex:0 0 auto;color:var(--muted2);transition:.2s;font-size:13px}
+  .sprint.open .caret{transform:rotate(90deg)}
+  .sprint .body{display:none;padding:4px 14px 14px}
+  .sprint.open .body{display:block}
+  .curtag{font-size:10px;font-weight:800;color:#fff;background:var(--accent);padding:2px 7px;border-radius:6px;text-transform:uppercase;letter-spacing:.5px;margin-left:8px}
+  .vactag{font-size:10px;font-weight:800;color:#92400E;background:var(--f2s);border:1px solid #FCD34D;padding:2px 7px;border-radius:6px;margin-left:8px}
+
+  /* Task row */
+  .task{display:flex;align-items:flex-start;gap:11px;padding:10px;border:1px solid var(--line);border-radius:11px;margin-top:8px;background:#fff;position:relative}
+  .task.sub{margin-left:22px;background:#FAFBFC;border-style:dashed}
+  .task.mile{border-left:4px solid var(--accent)}
+  .task.done{background:#F6FBF7;border-color:#CDEBD6}
+  .cbx{flex:0 0 auto;width:21px;height:21px;border:2px solid var(--line2);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-top:1px;transition:.12s}
+  .cbx:hover{border-color:var(--accent)}
+  .cbx.on{background:var(--ok);border-color:var(--ok);color:#fff}
+  .cbx svg{width:13px;height:13px;display:none}
+  .cbx.on svg{display:block}
+  .tmain{flex:1;min-width:0}
+  .ttitle{font-size:13.5px;font-weight:600;outline:none;border-radius:5px;padding:1px 3px;margin:-1px -3px}
+  .ttitle:focus{background:var(--accent-soft);box-shadow:0 0 0 2px var(--accent-soft)}
+  .task.done .ttitle{color:var(--muted);text-decoration:line-through}
+  .trow2{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:7px}
+  .pill{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:5px}
+  .champ-sel{font-size:11.5px;border:1px solid var(--line2);border-radius:999px;padding:3px 8px;background:#fff;font-weight:600;color:var(--ink2);cursor:pointer;max-width:185px}
+  .respo{font-size:12px;color:var(--muted);outline:none;border-radius:5px;padding:1px 4px}
+  .respo:focus{background:var(--accent-soft)}
+  .progmini{display:flex;align-items:center;gap:7px;margin-left:auto}
+  .progmini input[type=range]{width:92px;accent-color:var(--accent)}
+  .progmini .pv{font-size:11.5px;font-weight:800;width:34px;text-align:right;color:var(--ink2)}
+  .tacts{display:flex;gap:6px;align-items:center}
+  .iconbtn{border:none;background:transparent;color:var(--muted2);cursor:pointer;font-size:13px;padding:3px 5px;border-radius:6px}
+  .iconbtn:hover{background:#F1F5F9;color:var(--ink)}
+  .iconbtn.del:hover{background:#FEE2E2;color:#B91C1C}
+  .tdetail{display:none;margin-top:9px;padding-top:9px;border-top:1px dashed var(--line);gap:14px;flex-wrap:wrap;align-items:flex-end}
+  .task.expanded .tdetail{display:flex}
+  .fld{display:flex;flex-direction:column;gap:3px}
+  .fld label{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);font-weight:700}
+  .fld input,.fld textarea{border:1px solid var(--line2);border-radius:8px;padding:6px 8px;font-size:12.5px;font-family:inherit;color:var(--ink)}
+  .fld textarea{min-width:280px;min-height:38px;resize:vertical}
+  .addTask{margin-top:10px;border:1.5px dashed var(--line2);background:#fff;color:var(--muted);padding:9px;border-radius:11px;width:100%;font-size:12.5px;font-weight:700;cursor:pointer}
+  .addTask:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+
+  /* Gantt view */
+  .ganttWrap{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;display:none}
+  .ganttWrap.on{display:block}
+  .ganttScroll{overflow-x:auto}
+  .gtable{min-width:900px}
+  .grow{display:flex;align-items:stretch;border-bottom:1px solid var(--line)}
+  .grow.gh{position:sticky;top:0;background:#F8FAFC;z-index:2}
+  .grow.wkhdr{background:#fff;font-weight:800}
+  .gname{flex:0 0 320px;padding:9px 12px;font-size:12.5px;display:flex;align-items:center;gap:8px;border-right:1px solid var(--line)}
+  .gname.grp{background:#F8FAFC;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink2)}
+  .gtrack{flex:1;position:relative;min-height:34px}
+  .gcols{position:absolute;inset:0;display:grid;grid-template-columns:repeat(10,1fr)}
+  .gcols span{border-right:1px solid #EEF2F7;font-size:9.5px;color:var(--muted2);text-align:center;padding-top:3px}
+  .gcols span.vac{background:repeating-linear-gradient(45deg,#FEF3C7,#FEF3C7 6px,#FDE68A40 6px,#FDE68A40 12px)}
+  .gbar{position:absolute;top:7px;height:18px;border-radius:6px;display:flex;align-items:center;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+  .gbar i{display:block;height:100%;background:rgba(255,255,255,.42)}
+  .gbar .gp{position:absolute;right:5px;font-size:9px;font-weight:800;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.3)}
+  .todayLine{position:absolute;top:0;bottom:0;width:2px;background:#EF4444;z-index:3}
+  .todayLine::after{content:"HOY";position:absolute;top:-1px;left:3px;font-size:8px;font-weight:800;color:#EF4444}
+
+  .footnote{font-size:12px;color:var(--muted);margin-top:18px;text-align:center;line-height:1.6}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;opacity:0;transition:.25s;z-index:50;box-shadow:var(--shadow)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .procnote{background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#92400E;margin-bottom:18px}
+  .procnote b{color:#78350F}
+
+  @media (max-width:820px){
+    .cards{grid-template-columns:repeat(2,1fr)}
+    .weeks{grid-template-columns:repeat(5,1fr)}
+    .sprint .hp{display:none}
+    .gname{flex-basis:200px}
+  }
+  @media print{
+    .toolbar,.barRow,.addTask,.tacts,.iconbtn,.ring{display:none!important}
+    .sprint .body{display:block!important}
+    body{background:#fff}
+    .ganttWrap.on{display:block}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div>
+        <h1>Gantt Oficial · Piloto SkandIA</h1>
+        <div class="sub">NOLA LABS · Metodología ágil por sprints · 10 semanas</div>
+      </div>
+    </div>
+    <div class="meta">
+      <span>PM: <b>Mateo Gaviria</b></span>
+      <span>Kickoff: <b>17 jun 2026</b></span>
+      <span>Piloto: <b>22 jun – 28 ago 2026</b></span>
+      <span>Champions: <b>5 · Procesos: 7</b></span>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn accent" id="addSprintTaskTop">+ Agregar tarea</button>
+    <button class="btn" id="expandAll">Expandir todo</button>
+    <button class="btn" id="collapseAll">Colapsar todo</button>
+    <span class="spacer"></span>
+    <span class="save-state" id="syncBadge" style="margin-right:12px;font-weight:700"></span>
+    <span class="save-state" id="saveState"></span>
+    <button class="btn" id="exportBtn">⤓ Exportar</button>
+    <button class="btn" id="importBtn">⤒ Importar</button>
+    <button class="btn" id="printBtn">🖨 Imprimir / PDF</button>
+    <button class="btn ghost" id="resetBtn">↺ Reiniciar</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none">
+  </div>
+
+  <div class="procnote" id="procnote">
+    <b>Nota:</b> los nombres de los 7 procesos están como referencia editable (los inferí del rol de cada champion). Cámbialos cuando confirmes el alcance final con cada uno. Todo se puede editar; con el backend de Firebase configurado, el avance se sincroniza en la nube y verás "Sincronizado" arriba — se actualiza en cualquier dispositivo. Sin configurar, funciona en modo local. Sigue la <b>GUIA_Backend_Sync.md</b>.
+  </div>
+
+  <div class="cards">
+    <div class="kpi"><div class="ring" id="ring"><i id="ringTxt">0%</i></div><div class="lab">Avance general</div><div class="val" id="kOverall">0%</div><div class="hint" id="kOverallH">0 de 0 tareas</div></div>
+    <div class="kpi"><div class="lab">Sprint actual</div><div class="val" id="kSprint">—</div><div class="hint" id="kSprintH"></div></div>
+    <div class="kpi"><div class="lab">Tareas completadas</div><div class="val" id="kDone">0</div><div class="hint" id="kDoneH"></div></div>
+    <div class="kpi"><div class="lab">Días para el cierre</div><div class="val" id="kDays">—</div><div class="hint">hasta 28 ago 2026</div></div>
+  </div>
+
+  <div class="phaseStrip">
+    <h3>Línea de tiempo — 10 sprints semanales</h3>
+    <div class="weeks" id="weeksStrip"></div>
+    <div class="legendRow">
+      <span><i class="dot" style="background:var(--f1)"></i>Fase 1 · Aterrizaje y línea base (sem 1–2)</span>
+      <span><i class="dot" style="background:var(--f2)"></i>Fase 2 · Implementación directa con champions · vacaciones Carolina (sem 3–6, julio)</span>
+      <span><i class="dot" style="background:var(--f3)"></i>Fase 3 · Validación, escala y cierre (sem 7–10, agosto)</span>
+    </div>
+  </div>
+
+  <div class="barRow">
+    <div class="tabs">
+      <button class="tab on" data-view="board">Tablero de sprints</button>
+      <button class="tab" data-view="gantt">Vista Gantt</button>
+    </div>
+    <div class="chips" id="champChips"></div>
+    <label class="toggle"><input type="checkbox" id="onlyPending"> Solo pendientes</label>
+  </div>
+
+  <div id="boardView"></div>
+
+  <div class="ganttWrap" id="ganttView">
+    <div class="ganttScroll"><div class="gtable" id="ganttTable"></div></div>
+  </div>
+
+  <div class="footnote">
+    Hecho por NOLA LABS para el piloto de SkandIA · El avance se guarda automáticamente en este navegador.<br>
+    Usa <b>Exportar</b> para guardar un respaldo o compartir el estado, e <b>Importar</b> para restaurarlo.
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase (backend de sincronización). Si no configuras nada abajo, la app funciona en modo local. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+/* ============================ DATOS BASE ============================ */
+const PROJECT_START = new Date(2026,5,22); // 22 jun 2026 (lunes)
+const PROJECT_END   = new Date(2026,7,28); // 28 ago 2026 (viernes)
+
+const CHAMPIONS = {
+  valeria:{name:"Valeria Sánchez", role:"Líder de Comunicaciones", color:"#6366F1"},
+  maria:{name:"María Malo", role:"Líder de Estrategia", color:"#EC4899"},
+  andres:{name:"Andrés Ruiz", role:"Líder Content Lab", color:"#F59E0B"},
+  sofia:{name:"Sofía Enríquez", role:"Líder Redes Sociales", color:"#10B981"},
+  jessica:{name:"Jessica Quiroga", role:"Champion", color:"#06B6D4"},
+  equipo:{name:"Equipo NOLA / Dirección", role:"Mateo · Laura · Carolina", color:"#64748B"}
+};
+
+const PHASES = {
+  1:{name:"Aterrizaje y línea base", color:"var(--f1)", cls:"p1"},
+  2:{name:"Implementación directa con champions (vacaciones Carolina)", color:"var(--f2)", cls:"p2"},
+  3:{name:"Validación, escala y cierre", color:"var(--f3)", cls:"p3"}
+};
+
+// Lunes de cada sprint
+const WEEK_STARTS = [];
+for(let i=0;i<10;i++){ const d=new Date(PROJECT_START); d.setDate(d.getDate()+i*7); WEEK_STARTS.push(d); }
+function wkMon(n){ return new Date(WEEK_STARTS[n-1]); }
+function wkFri(n){ const d=wkMon(n); d.setDate(d.getDate()+4); return d; }
+function iso(d){ return d.toISOString().slice(0,10); }
+function fmtShort(d){ const m=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"]; return d.getDate()+" "+m[d.getMonth()]; }
+
+const SPRINTS = [
+  {w:1, phase:1, goal:"Aterrizar el piloto con cada champion y cerrar la línea base (Punto Cero)."},
+  {w:2, phase:1, goal:"Última semana con Carolina presente: dejar todo listo para que el equipo opere solo en julio."},
+  {w:3, phase:2, goal:"Construcción guiada #1: biblioteca de prompts y primer caso de uso diagramado por champion."},
+  {w:4, phase:2, goal:"Construcción guiada #2: primer asistente/automatización funcional por champion + dry-run."},
+  {w:5, phase:2, goal:"Refinar con resultados y poner en uso real el primer caso de cada champion."},
+  {w:6, phase:2, goal:"Segundo caso de uso y preparar la demo que cada champion le mostrará a Carolina."},
+  {w:7, phase:3, goal:"Carolina regresa: showcase por champion + ajustes según feedback de la Dirección."},
+  {w:8, phase:3, goal:"Estabilizar los casos de uso en producción y recoger datos finales."},
+  {w:9, phase:3, goal:"Evaluar impacto vs. Punto Cero y redactar el Playbook 'Marketing + IA'."},
+  {w:10,phase:3, goal:"Cierre: informe final, validación de autonomía de champions y propuesta de Fase 2."}
+];
+
+// helper para crear tareas
+function T(w,title,lead,champ,type,prog,extra){
+  extra=extra||{};
+  const s = extra.start || iso(wkMon(w));
+  const e = extra.end   || iso(wkFri(w));
+  return {id:extra.id, w, title, lead, champ, type:type||"task", progress:prog||0, done:(prog===100), start:s, end:e, notes:extra.notes||""};
+}
+
+function defaultTasks(){
+  let k=0; const id=()=>"t"+(++k);
+  const A=[];
+  const push=(t)=>{t.id=id(); A.push(t);};
+
+  // ---- Semana 1 (las 6 tareas dadas) ----
+  push(T(1,"Tener un primer 1:1 con cada champion (cerrar el pendiente con Valeria)","Mateo","equipo","task",0));
+  push(T(1,"Aterrizar a detalle cada uno de los procesos a trabajar con cada champion","Mateo","equipo","task",0));
+  push(T(1,"Entregar el Gantt actualizado con tiempos y tareas para evaluar el progreso del piloto","Mateo","equipo","milestone",60));
+  push(T(1,"Terminar de recoger los datos faltantes para montar el estado actual / Punto Cero","Laura","equipo","task",0));
+  push(T(1,"Revisar el Brand Brain y reunión con Lau para definir qué tenemos y qué falta","Mateo + Laura","equipo","task",0));
+  push(T(1,"Revisar con Lau, Caro y los champions el proceso de recibimiento de solicitudes y definir fecha de implementación","Mateo + Carolina","equipo","task",0));
+
+  // ---- Semana 2 (cierre con Carolina) ----
+  push(T(2,"Congelar y firmar el Acta de Punto Cero con Carolina y los champions","Laura + Carolina","equipo","milestone",0));
+  push(T(2,"Cerrar el alcance definitivo: 7 procesos / casos de uso por champion","Mateo","equipo","task",0));
+  push(T(2,"Definir y documentar los lineamientos de gobernanza y uso responsable de IA","Mateo + Carolina","equipo","task",0));
+  push(T(2,"Taller de inmersión y fundamentos de IA generativa con los 5 champions","Mateo","equipo","milestone",0));
+  push(T(2,"Acordar el ritual ágil de julio: 1:1 semanal por champion + check-in grupal + cómo reportar avance aquí","Mateo","equipo","task",0));
+  push(T(2,"Definir con Carolina la 'definición de hecho': qué demo le mostrará cada champion a su regreso","Mateo + Carolina","equipo","milestone",0));
+
+  // ---- Semana 3 (julio) ----
+  push(T(3,"HITO: Biblioteca inicial de prompts por rol (Comms, Estrategia, Content, Redes)","Mateo","equipo","milestone",0));
+  push(T(3,"1:1 semanal de acompañamiento técnico con cada champion","Mateo","equipo","task",0));
+  push(T(3,"Diagramar Proceso 1 (sistema de copys) actual → IA + set inicial de prompts","Valeria","valeria","subtask",0));
+  push(T(3,"Diagramar su proceso de estrategia actual → IA + set inicial de prompts","María","maria","subtask",0));
+  push(T(3,"Diagramar proceso del Content Lab actual → IA + set inicial de prompts","Andrés","andres","subtask",0));
+  push(T(3,"Diagramar Proceso 1 (social listening / tendencias) actual → IA + prompts","Sofía","sofia","subtask",0));
+  push(T(3,"Diagramar su proceso actual → IA + set inicial de prompts","Jessica","jessica","subtask",0));
+
+  // ---- Semana 4 (julio) ----
+  push(T(4,"HITO: Primer asistente/automatización funcional por champion (entorno controlado) + dry-run","Mateo","equipo","milestone",0));
+  push(T(4,"1:1 semanal de acompañamiento técnico con cada champion","Mateo","equipo","task",0));
+  push(T(4,"Construir y probar (dry-run) el agente del Proceso 1 + empezar a diagramar Proceso 2","Valeria","valeria","subtask",0));
+  push(T(4,"Construir y probar (dry-run) el agente de su proceso","María","maria","subtask",0));
+  push(T(4,"Construir y probar (dry-run) el agente de su proceso","Andrés","andres","subtask",0));
+  push(T(4,"Construir y probar (dry-run) el agente del Proceso 1 + empezar a diagramar Proceso 2","Sofía","sofia","subtask",0));
+  push(T(4,"Construir y probar (dry-run) el agente de su proceso","Jessica","jessica","subtask",0));
+
+  // ---- Semana 5 (julio) ----
+  push(T(5,"HITO: Primer caso de uso de cada champion en uso real","Mateo","equipo","milestone",0));
+  push(T(5,"Sesión grupal de calibración: compartir aprendizajes, barreras y éxitos","Mateo","equipo","task",0));
+  push(T(5,"Integrar las herramientas de IA con los sistemas reales (ClickUp / Suite Microsoft)","Mateo","equipo","task",0));
+  push(T(5,"Refinar prompts/flujos, usar en real y medir primeros resultados vs. Punto Cero","Valeria","valeria","subtask",0));
+  push(T(5,"Refinar prompts/flujos, usar en real y medir primeros resultados vs. Punto Cero","María","maria","subtask",0));
+  push(T(5,"Refinar prompts/flujos, usar en real y medir primeros resultados vs. Punto Cero","Andrés","andres","subtask",0));
+  push(T(5,"Refinar prompts/flujos, usar en real y medir primeros resultados vs. Punto Cero","Sofía","sofia","subtask",0));
+  push(T(5,"Refinar prompts/flujos, usar en real y medir primeros resultados vs. Punto Cero","Jessica","jessica","subtask",0));
+
+  // ---- Semana 6 (julio) ----
+  push(T(6,"HITO: Segundo caso de uso en marcha + demo lista para Carolina","Mateo","equipo","milestone",0));
+  push(T(6,"Recolección de métricas del mes de implementación asistida","Laura","equipo","task",0));
+  push(T(6,"Ensayo de showcase interno (antes del regreso de Carolina)","Mateo","equipo","task",0));
+  push(T(6,"Cerrar Proceso 2 (Comms) + preparar la demo de lo construido","Valeria","valeria","subtask",0));
+  push(T(6,"Afinar caso de uso + preparar la demo de lo construido","María","maria","subtask",0));
+  push(T(6,"Afinar caso de uso + preparar la demo de lo construido","Andrés","andres","subtask",0));
+  push(T(6,"Cerrar Proceso 2 (Redes) + preparar la demo de lo construido","Sofía","sofia","subtask",0));
+  push(T(6,"Afinar caso de uso + preparar la demo de lo construido","Jessica","jessica","subtask",0));
+
+  // ---- Semana 7 (agosto, Carolina vuelve) ----
+  push(T(7,"HITO: Showcase a Carolina — cada champion presenta lo que construyó","Mateo + Carolina","equipo","milestone",0));
+  push(T(7,"Demo a Carolina del Proceso 1 y 2","Valeria","valeria","subtask",0));
+  push(T(7,"Demo a Carolina del proceso de estrategia","María","maria","subtask",0));
+  push(T(7,"Demo a Carolina del proceso de Content Lab","Andrés","andres","subtask",0));
+  push(T(7,"Demo a Carolina del Proceso 1 y 2 de redes","Sofía","sofia","subtask",0));
+  push(T(7,"Demo a Carolina de su proceso","Jessica","jessica","subtask",0));
+  push(T(7,"Recoger feedback de Carolina y la Dirección + ajustes de calidad (Legal/Producto si aplica)","Mateo","equipo","task",0));
+  push(T(7,"Primera medición de impacto en caliente vs. Punto Cero","Laura","equipo","task",0));
+
+  // ---- Semana 8 (agosto) ----
+  push(T(8,"Estabilizar los 7 casos de uso (y los segundos casos) en producción","Mateo","equipo","task",0));
+  push(T(8,"Revisión cruzada de flujos operativos entre champions","Mateo","equipo","task",0));
+  push(T(8,"Recolección final de datos y métricas de desempeño operativo","Laura","equipo","task",0));
+
+  // ---- Semana 9 (agosto) ----
+  push(T(9,"Evaluación final del impacto cuantitativo del piloto vs. Punto Cero (horas, velocidad, deuda operativa)","Laura","equipo","milestone",0));
+  push(T(9,"Redacción y estructuración del Playbook institucional 'Marketing + IA'","Mateo","equipo","task",0));
+  push(T(9,"Identificar y perfilar nuevos procesos candidatos para la Fase 2","Mateo","equipo","task",0));
+
+  // ---- Semana 10 (agosto) ----
+  push(T(10,"Revisión del Playbook con los champions (validar su autonomía como facilitadores)","Mateo","equipo","task",0));
+  push(T(10,"Entrega del Informe Final de Resultados (ahorros y entregables consolidados)","Mateo","equipo","milestone",0));
+  push(T(10,"Showcase de cierre y presentación ejecutiva del plan de Fase 2 a la Dirección","Mateo + Carolina","equipo","milestone",0));
+
+  return A;
+}
+
+/* ============================ ESTADO + BACKEND ============================ */
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║  PEGA AQUÍ TU CONFIG DE FIREBASE (ver GUIA_Backend_Sync.md).      ║
+   ║  Mientras esté vacío, la app funciona en MODO LOCAL (sin sync).   ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+const FIREBASE_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  appId: ""
+};
+const BOARD_ID = "skandia-piloto"; // mismo id en todos los dispositivos = mismo tablero
+
+const LS_KEY="skandia_gantt_v1";
+let state=null, openSet=new Set(), curView="board", champFilter=new Set(Object.keys(CHAMPIONS)), onlyPending=false;
+let CLOUD=false, db=null, boardRef=null, applyingRemote=false, saveTimer=null;
+
+function cloudConfigured(){ return !!(FIREBASE_CONFIG && FIREBASE_CONFIG.projectId && FIREBASE_CONFIG.apiKey && typeof firebase!=="undefined"); }
+
+function loadLocal(){
+  try{ const raw=localStorage.getItem(LS_KEY); if(raw){ const o=JSON.parse(raw);
+    if(o&&o.tasks&&o.tasks.length){ return o; } } }catch(e){}
+  return {tasks:defaultTasks(), updated:Date.now()};
+}
+function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+
+function save(){
+  state.updated=Date.now();
+  saveLocal();
+  renderSaveState();
+  if(CLOUD && boardRef && !applyingRemote){
+    setSync("saving");
+    clearTimeout(saveTimer);
+    saveTimer=setTimeout(()=>{
+      boardRef.set(state).then(()=>setSync("ok")).catch(()=>setSync("err"));
+    }, 600);
+  }
+}
+
+function setSync(s){
+  const el=document.getElementById("syncBadge"); if(!el) return;
+  const map={
+    local:["● Modo local (sin sync)","#D97706"],
+    connecting:["● Conectando…","#64748B"],
+    saving:["● Guardando…","#64748B"],
+    ok:["● Sincronizado en la nube","#16A34A"],
+    err:["● Sin conexión — guardado local","#DC2626"]
+  };
+  const v=map[s]||map.local; el.textContent=v[0]; el.style.color=v[1];
+}
+
+function renderSaveState(){
+  const d=new Date(state.updated);
+  document.getElementById("saveState").textContent="Editado · "+d.toLocaleDateString('es-CO')+" "+d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ============================ CÁLCULOS ============================ */
+function tasksOf(w){ return state.tasks.filter(t=>t.w===w); }
+function sprintPct(w){ const ts=tasksOf(w); if(!ts.length) return 0; return Math.round(ts.reduce((a,t)=>a+(t.done?100:t.progress),0)/ts.length); }
+function overall(){ const ts=state.tasks; if(!ts.length) return 0; return Math.round(ts.reduce((a,t)=>a+(t.done?100:t.progress),0)/ts.length); }
+function currentWeek(){ const now=new Date(); if(now<wkMon(1)) return 0; for(let i=10;i>=1;i--){ if(now>=wkMon(i)) return i; } return 0; }
+
+/* ============================ RENDER: KPIs + strip ============================ */
+function renderTop(){
+  const ov=overall();
+  document.getElementById("kOverall").textContent=ov+"%";
+  const done=state.tasks.filter(t=>t.done).length, tot=state.tasks.length;
+  document.getElementById("kOverallH").textContent=done+" de "+tot+" tareas completas";
+  document.getElementById("ringTxt").textContent=ov+"%";
+  document.getElementById("ring").style.setProperty("--p",ov);
+  document.getElementById("kDone").textContent=done;
+  document.getElementById("kDoneH").textContent=(tot-done)+" pendientes";
+  const cw=currentWeek();
+  document.getElementById("kSprint").textContent= cw===0? "Pre" : ("Sem "+cw);
+  document.getElementById("kSprintH").textContent= cw===0? "Antes del arranque" : (sprintPct(cw)+"% del sprint · "+fmtShort(wkMon(cw))+"–"+fmtShort(wkFri(cw)));
+  const ms=Math.ceil((PROJECT_END-new Date())/86400000);
+  document.getElementById("kDays").textContent= ms>0? ms : "0";
+
+  const strip=document.getElementById("weeksStrip"); strip.innerHTML="";
+  const cw2=currentWeek();
+  SPRINTS.forEach(sp=>{
+    const pct=sprintPct(sp.w);
+    const el=document.createElement("div");
+    el.className="wk "+PHASES[sp.phase].cls+(sp.w===cw2?" cur":"");
+    el.innerHTML='<div class="n">S'+sp.w+'</div><div class="d">'+fmtShort(wkMon(sp.w))+'</div>'+
+      '<div class="mini"><i style="width:'+pct+'%"></i></div><div class="pct">'+pct+'%</div>';
+    el.onclick=()=>{ openSet=new Set([sp.w]); switchView("board"); renderBoard(); const node=document.getElementById("sprint-"+sp.w); if(node) node.scrollIntoView({behavior:"smooth",block:"center"}); };
+    strip.appendChild(el);
+  });
+}
+
+/* ============================ RENDER: chips ============================ */
+function renderChips(){
+  const c=document.getElementById("champChips"); c.innerHTML="";
+  Object.keys(CHAMPIONS).forEach(key=>{
+    const ch=CHAMPIONS[key]; const on=champFilter.has(key);
+    const el=document.createElement("button");
+    el.className="chip"+(on?"":" off");
+    el.innerHTML='<span class="cdot" style="background:'+ch.color+'"></span>'+ch.name.split(" ")[0]+(key==="equipo"?"":"");
+    el.title=ch.role;
+    el.onclick=()=>{ if(champFilter.has(key)) champFilter.delete(key); else champFilter.add(key); renderChips(); renderBoard(); renderGantt(); };
+    c.appendChild(el);
+  });
+}
+
+/* ============================ RENDER: board ============================ */
+const CHECK_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+function taskVisible(t){
+  if(!champFilter.has(t.champ)) return false;
+  if(onlyPending && t.done) return false;
+  return true;
+}
+
+function champOptions(sel){
+  return Object.keys(CHAMPIONS).map(k=>'<option value="'+k+'"'+(k===sel?' selected':'')+'>'+CHAMPIONS[k].name+'</option>').join("");
+}
+
+function taskHTML(t){
+  const ch=CHAMPIONS[t.champ]||CHAMPIONS.equipo;
+  const cls="task "+(t.type==="subtask"?"sub ":"")+(t.type==="milestone"?"mile ":"")+(t.done?"done":"");
+  return '<div class="'+cls+'" data-id="'+t.id+'" style="border-left-color:'+(t.type==="milestone"?ch.color:"")+'">'+
+    '<div class="cbx '+(t.done?"on":"")+'" data-act="toggle">'+CHECK_SVG+'</div>'+
+    '<div class="tmain">'+
+      '<div class="ttitle" contenteditable="true" data-fld="title">'+escapeHtml(t.title)+'</div>'+
+      '<div class="trow2">'+
+        (t.type==="milestone"?'<span class="pill" style="background:#FEF3C7;color:#92400E">★ Hito</span>':"")+
+        '<select class="champ-sel" data-fld="champ" style="color:'+ch.color+';border-color:'+ch.color+'55">'+champOptions(t.champ)+'</select>'+
+        '<span style="font-size:12px;color:var(--muted2)">·</span>'+
+        '<span class="respo" contenteditable="true" data-fld="lead">'+escapeHtml(t.lead)+'</span>'+
+        '<span class="progmini">'+
+          '<input type="range" min="0" max="100" step="5" value="'+(t.done?100:t.progress)+'" data-fld="progress">'+
+          '<span class="pv">'+(t.done?100:t.progress)+'%</span>'+
+        '</span>'+
+        '<span class="tacts">'+
+          '<button class="iconbtn" data-act="expand" title="Fechas y notas">⚙</button>'+
+          '<button class="iconbtn del" data-act="del" title="Eliminar">✕</button>'+
+        '</span>'+
+      '</div>'+
+      '<div class="tdetail">'+
+        '<div class="fld"><label>Inicio</label><input type="date" value="'+t.start+'" data-fld="start"></div>'+
+        '<div class="fld"><label>Fin</label><input type="date" value="'+t.end+'" data-fld="end"></div>'+
+        '<div class="fld"><label>Notas</label><textarea data-fld="notes" placeholder="Notas, links, bloqueos...">'+escapeHtml(t.notes||"")+'</textarea></div>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+
+function renderBoard(){
+  const root=document.getElementById("boardView"); root.innerHTML="";
+  const cw=currentWeek();
+  SPRINTS.forEach(sp=>{
+    const ph=PHASES[sp.phase];
+    const ts=tasksOf(sp.w).filter(taskVisible);
+    const pct=sprintPct(sp.w);
+    const isOpen=openSet.has(sp.w);
+    const wrap=document.createElement("div");
+    wrap.className="sprint"+(isOpen?" open":"");
+    wrap.id="sprint-"+sp.w;
+    const tags=(sp.w===cw?'<span class="curtag">Sprint actual</span>':"")+(sp.phase===2?'<span class="vactag">Carolina de vacaciones</span>':"");
+    wrap.innerHTML=
+      '<div class="head" data-w="'+sp.w+'">'+
+        '<div class="badge" style="background:'+ph.color+'"><small>Sem</small><b>'+sp.w+'</b></div>'+
+        '<div class="htxt"><div class="t">Sprint '+sp.w+' · '+fmtShort(wkMon(sp.w))+' – '+fmtShort(wkFri(sp.w))+tags+'</div>'+
+          '<div class="g">'+sp.goal+'</div></div>'+
+        '<div class="hp"><div class="bar"><i style="width:'+pct+'%"></i></div><div class="lab">'+pct+'% · '+tasksOf(sp.w).filter(t=>t.done).length+'/'+tasksOf(sp.w).length+'</div></div>'+
+        '<div class="caret">▶</div>'+
+      '</div>'+
+      '<div class="body">'+
+        (ts.length? ts.map(taskHTML).join("") : '<div style="color:var(--muted2);font-size:12.5px;padding:10px">Sin tareas que coincidan con el filtro.</div>')+
+        '<button class="addTask" data-addw="'+sp.w+'">+ Agregar tarea a este sprint</button>'+
+      '</div>';
+    root.appendChild(wrap);
+  });
+}
+
+/* ============================ RENDER: gantt ============================ */
+function dateToPct(d){ const a=PROJECT_START.getTime(), b=PROJECT_END.getTime()+86400000; return Math.max(0,Math.min(100,((new Date(d).getTime()-a)/(b-a))*100)); }
+function renderGantt(){
+  const root=document.getElementById("ganttTable"); root.innerHTML="";
+  // header
+  let cols=""; for(let i=1;i<=10;i++){ const vac=(SPRINTS[i-1].phase===2); cols+='<span class="'+(vac?"vac":"")+'">S'+i+'<br>'+fmtShort(wkMon(i))+'</span>'; }
+  const hdr=document.createElement("div"); hdr.className="grow gh";
+  hdr.innerHTML='<div class="gname grp">Tarea</div><div class="gtrack"><div class="gcols">'+cols+'</div></div>';
+  root.appendChild(hdr);
+
+  const todayPct=dateToPct(iso(new Date()));
+  SPRINTS.forEach(sp=>{
+    const ts=tasksOf(sp.w).filter(taskVisible);
+    if(!ts.length) return;
+    const grp=document.createElement("div"); grp.className="grow";
+    grp.innerHTML='<div class="gname grp">Sprint '+sp.w+'</div><div class="gtrack" style="background:#FAFBFC"><div class="gcols">'+colSpans()+'</div></div>';
+    root.appendChild(grp);
+    ts.forEach(t=>{
+      const ch=CHAMPIONS[t.champ]||CHAMPIONS.equipo;
+      const l=dateToPct(t.start), w=Math.max(2,dateToPct(t.end)-l);
+      const row=document.createElement("div"); row.className="grow";
+      const fill=(t.done?100:t.progress);
+      row.innerHTML='<div class="gname">'+(t.type==="milestone"?"★ ":"")+escapeHtml(shorten(t.title,46))+'</div>'+
+        '<div class="gtrack"><div class="gcols">'+colSpans()+'</div>'+
+          (todayPct>0&&todayPct<100?'<div class="todayLine" style="left:'+todayPct+'%"></div>':"")+
+          '<div class="gbar" style="left:'+l+'%;width:'+w+'%;background:'+ch.color+'">'+
+            '<i style="width:'+fill+'%"></i><span class="gp">'+fill+'%</span>'+
+          '</div>'+
+        '</div>';
+      root.appendChild(row);
+    });
+  });
+}
+function colSpans(){ let s=""; for(let i=1;i<=10;i++){ const vac=(SPRINTS[i-1].phase===2); s+='<span class="'+(vac?"vac":"")+'"></span>'; } return s; }
+function shorten(t,n){ return t.length>n? t.slice(0,n-1)+"…" : t; }
+
+/* ============================ EVENTOS ============================ */
+function escapeHtml(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function getTask(id){ return state.tasks.find(t=>t.id===id); }
+function find(el,sel){ return el.closest(sel); }
+
+document.getElementById("boardView").addEventListener("click",e=>{
+  const head=e.target.closest(".head");
+  if(head){ const w=+head.dataset.w; if(openSet.has(w)) openSet.delete(w); else openSet.add(w); renderBoard(); return; }
+  const addBtn=e.target.closest("[data-addw]");
+  if(addBtn){ const w=+addBtn.dataset.addw; const nt=T(w,"Nueva tarea","","equipo","task",0); nt.id="t"+Date.now(); state.tasks.push(nt); openSet.add(w); save(); renderBoard(); renderTop(); return; }
+  const act=e.target.closest("[data-act]"); if(!act) return;
+  const taskEl=act.closest(".task"); const id=taskEl.dataset.id; const t=getTask(id); if(!t) return;
+  const a=act.dataset.act;
+  if(a==="toggle"){ t.done=!t.done; if(t.done) t.progress=100; save(); renderBoard(); renderTop(); }
+  else if(a==="expand"){ taskEl.classList.toggle("expanded"); }
+  else if(a==="del"){ if(confirm("¿Eliminar esta tarea?")){ state.tasks=state.tasks.filter(x=>x.id!==id); save(); renderBoard(); renderTop(); } }
+});
+
+// edición inline (input para range/select/date, blur para contenteditable/textarea)
+document.getElementById("boardView").addEventListener("input",e=>{
+  const f=e.target.dataset.fld; if(!f) return;
+  const taskEl=e.target.closest(".task"); const t=getTask(taskEl.dataset.id); if(!t) return;
+  if(f==="progress"){ t.progress=+e.target.value; if(t.progress===100) t.done=true; else if(t.done&&t.progress<100) t.done=false;
+    taskEl.querySelector(".pv").textContent=t.progress+"%";
+    taskEl.querySelector(".cbx").classList.toggle("on",t.done);
+    taskEl.classList.toggle("done",t.done);
+    save(); renderTop(); updateSprintHeads(); }
+});
+document.getElementById("boardView").addEventListener("change",e=>{
+  const f=e.target.dataset.fld; if(!f) return;
+  const taskEl=e.target.closest(".task"); const t=getTask(taskEl.dataset.id); if(!t) return;
+  if(f==="champ"){ t.champ=e.target.value; save(); renderBoard(); renderGantt(); }
+  else if(f==="start"||f==="end"){ t[f]=e.target.value; save(); }
+});
+document.getElementById("boardView").addEventListener("blur",e=>{
+  const f=e.target.dataset.fld; if(!f) return;
+  const taskEl=e.target.closest(".task"); const t=getTask(taskEl.dataset.id); if(!t) return;
+  if(f==="title"){ t.title=e.target.textContent.trim(); save(); }
+  else if(f==="lead"){ t.lead=e.target.textContent.trim(); save(); }
+  else if(f==="notes"){ t.notes=e.target.value; save(); }
+},true);
+
+function updateSprintHeads(){
+  SPRINTS.forEach(sp=>{
+    const node=document.getElementById("sprint-"+sp.w); if(!node) return;
+    const pct=sprintPct(sp.w);
+    const bar=node.querySelector(".hp .bar i"); if(bar) bar.style.width=pct+"%";
+    const lab=node.querySelector(".hp .lab"); if(lab) lab.textContent=pct+"% · "+tasksOf(sp.w).filter(t=>t.done).length+"/"+tasksOf(sp.w).length;
+  });
+  renderTop();
+}
+
+/* tabs / filtros / toolbar */
+function switchView(v){ curView=v;
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.view===v));
+  document.getElementById("boardView").style.display = v==="board"?"block":"none";
+  document.getElementById("ganttView").classList.toggle("on",v==="gantt");
+  if(v==="gantt") renderGantt();
+}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>switchView(b.dataset.view));
+document.getElementById("onlyPending").onchange=e=>{ onlyPending=e.target.checked; renderBoard(); renderGantt(); };
+document.getElementById("expandAll").onclick=()=>{ openSet=new Set(SPRINTS.map(s=>s.w)); renderBoard(); };
+document.getElementById("collapseAll").onclick=()=>{ openSet=new Set(); renderBoard(); };
+document.getElementById("addSprintTaskTop").onclick=()=>{ const w=currentWeek()||1; const nt=T(w,"Nueva tarea","","equipo","task",0); nt.id="t"+Date.now(); state.tasks.push(nt); openSet.add(w); switchView("board"); save(); renderBoard(); renderTop(); const n=document.getElementById("sprint-"+w); if(n)n.scrollIntoView({behavior:"smooth",block:"center"}); };
+document.getElementById("printBtn").onclick=()=>window.print();
+
+document.getElementById("exportBtn").onclick=()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="gantt_skandia_"+iso(new Date())+".json"; a.click(); toast("Respaldo exportado");
+};
+document.getElementById("importBtn").onclick=()=>document.getElementById("importFile").click();
+document.getElementById("importFile").onchange=e=>{
+  const f=e.target.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>{ try{ const o=JSON.parse(r.result); if(o&&o.tasks){ state=o; save(); renderAll(); toast("Estado importado"); } else toast("Archivo no válido"); }catch(err){ toast("Error al leer el archivo"); } };
+  r.readAsText(f);
+};
+document.getElementById("resetBtn").onclick=()=>{ if(confirm("Esto borra tu avance y vuelve al plan original. ¿Continuar?")){ state={tasks:defaultTasks(),updated:Date.now()}; save(); renderAll(); toast("Plan reiniciado"); } };
+
+let toastT;
+function toast(m){ const el=document.getElementById("toast"); el.textContent=m; el.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove("show"),2200); }
+
+/* ============================ INIT ============================ */
+function renderAll(){ renderTop(); renderChips(); renderBoard(); renderGantt(); renderSaveState(); }
+
+function startApp(){
+  const cw=currentWeek(); openSet=new Set([cw>0?cw:1]);
+  renderAll();
+  switchView("board");
+}
+
+function startCloud(){
+  setSync("connecting");
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db=firebase.firestore();
+    try{ firebase.auth().signInAnonymously().catch(()=>{}); }catch(e){}
+    boardRef=db.collection("boards").doc(BOARD_ID);
+    boardRef.get().then(snap=>{
+      if(snap.exists && snap.data() && snap.data().tasks && snap.data().tasks.length){
+        state=snap.data();                 // ya hay tablero en la nube → úsalo
+      }else{
+        state=loadLocal();                 // primera vez → siembra el plan en la nube
+        boardRef.set(state).catch(()=>{});
+      }
+      CLOUD=true; setSync("ok"); saveLocal(); startApp();
+      // sincronización en tiempo real entre dispositivos
+      boardRef.onSnapshot(s=>{
+        if(!s.exists) return;
+        const d=s.data(); if(!d||!d.tasks) return;
+        if(JSON.stringify(d)===JSON.stringify(state)) return; // es nuestro propio cambio
+        applyingRemote=true; state=d; saveLocal(); renderAll(); applyingRemote=false; setSync("ok");
+      }, ()=>setSync("err"));
+    }).catch(()=>{ CLOUD=false; state=loadLocal(); setSync("err"); startApp(); });
+  }catch(e){ CLOUD=false; state=loadLocal(); setSync("local"); startApp(); }
+}
+
+if(cloudConfigured()){ startCloud(); }
+else { state=loadLocal(); setSync("local"); startApp(); }
+</script>
+</body>
+</html>
