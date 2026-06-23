@@ -42,6 +42,11 @@
   .btn.ghost:hover{background:#FEE2E2;color:#B91C1C;border-color:#FCA5A5}
   .spacer{flex:1}
   .save-state{font-size:12px;color:var(--muted2)}
+  .btn.lockon{background:#ECFDF5;border-color:#6EE7B7;color:#047857}
+  body.readonly .cbx{pointer-events:none;opacity:.5}
+  body.readonly .addTask{display:none}
+  body.readonly .ttitle:focus,body.readonly .respo:focus{background:transparent;box-shadow:none}
+  body.readonly .champ-sel,body.readonly .progmini input[type=range]{opacity:.7}
 
   /* Dashboard */
   .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
@@ -197,6 +202,7 @@
   </header>
 
   <div class="toolbar">
+    <button class="btn" id="lockBtn">🔒 Solo lectura — editar</button>
     <button class="btn accent" id="addSprintTaskTop">+ Agregar tarea</button>
     <button class="btn" id="expandAll">Expandir todo</button>
     <button class="btn" id="collapseAll">Colapsar todo</button>
@@ -409,10 +415,11 @@ const FIREBASE_CONFIG = {
   appId: "1:534588224781:web:846839dc4ca4e00014ac44"
 };
 const BOARD_ID = "skandia-piloto"; // mismo id en todos los dispositivos = mismo tablero
+const EDIT_PASS_HASH = "1f7d66eb6031c361d00285009fec772beb185c1dec92e7dedb1ea59a075c5187"; // hash SHA-256 de la contraseña de edición (la clave NO queda escrita en el código)
 
 const LS_KEY="skandia_gantt_v1";
 let state=null, openSet=new Set(), curView="board", champFilter=new Set(Object.keys(CHAMPIONS)), onlyPending=false;
-let CLOUD=false, db=null, boardRef=null, applyingRemote=false, saveTimer=null;
+let CLOUD=false, db=null, boardRef=null, applyingRemote=false, saveTimer=null, editable=false;
 
 function cloudConfigured(){ return !!(FIREBASE_CONFIG && FIREBASE_CONFIG.projectId && FIREBASE_CONFIG.apiKey && typeof firebase!=="undefined"); }
 
@@ -451,6 +458,22 @@ function setSync(s){
 function renderSaveState(){
   const d=new Date(state.updated);
   document.getElementById("saveState").textContent="Editado · "+d.toLocaleDateString('es-CO')+" "+d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ====== Modo edición (candado con contraseña) ====== */
+async function sha256(str){ const b=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join(""); }
+async function tryUnlock(){
+  const p=prompt("Contraseña para editar el tablero:"); if(p===null) return;
+  let h=""; try{ h=await sha256(p); }catch(e){ toast("El cifrado no funciona en file:// — ábrelo desde la URL"); return; }
+  if(h===EDIT_PASS_HASH){ editable=true; try{localStorage.setItem("skandia_edit","1");}catch(e){} applyMode(); renderBoard(); toast("✔ Modo edición activado"); }
+  else toast("Contraseña incorrecta");
+}
+function lockEditing(){ editable=false; try{localStorage.removeItem("skandia_edit");}catch(e){} applyMode(); renderBoard(); toast("Modo solo lectura"); }
+function applyMode(){
+  document.body.classList.toggle("readonly", !editable);
+  const b=document.getElementById("lockBtn");
+  if(b){ b.textContent= editable? "🔓 Editando — bloquear" : "🔒 Solo lectura — editar"; b.classList.toggle("lockon", editable); }
+  ["addSprintTaskTop","importBtn","resetBtn"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display= editable? "" : "none"; });
 }
 
 /* ============================ CÁLCULOS ============================ */
@@ -521,25 +544,25 @@ function taskHTML(t){
   return '<div class="'+cls+'" data-id="'+t.id+'" style="border-left-color:'+(t.type==="milestone"?ch.color:"")+'">'+
     '<div class="cbx '+(t.done?"on":"")+'" data-act="toggle">'+CHECK_SVG+'</div>'+
     '<div class="tmain">'+
-      '<div class="ttitle" contenteditable="true" data-fld="title">'+escapeHtml(t.title)+'</div>'+
+      '<div class="ttitle" contenteditable="'+editable+'" data-fld="title">'+escapeHtml(t.title)+'</div>'+
       '<div class="trow2">'+
         (t.type==="milestone"?'<span class="pill" style="background:#FEF3C7;color:#92400E">★ Hito</span>':"")+
-        '<select class="champ-sel" data-fld="champ" style="color:'+ch.color+';border-color:'+ch.color+'55">'+champOptions(t.champ)+'</select>'+
+        '<select class="champ-sel" data-fld="champ" '+(editable?'':'disabled ')+'style="color:'+ch.color+';border-color:'+ch.color+'55">'+champOptions(t.champ)+'</select>'+
         '<span style="font-size:12px;color:var(--muted2)">·</span>'+
-        '<span class="respo" contenteditable="true" data-fld="lead">'+escapeHtml(t.lead)+'</span>'+
+        '<span class="respo" contenteditable="'+editable+'" data-fld="lead">'+escapeHtml(t.lead)+'</span>'+
         '<span class="progmini">'+
-          '<input type="range" min="0" max="100" step="5" value="'+(t.done?100:t.progress)+'" data-fld="progress">'+
+          '<input type="range" min="0" max="100" step="5" '+(editable?'':'disabled ')+'value="'+(t.done?100:t.progress)+'" data-fld="progress">'+
           '<span class="pv">'+(t.done?100:t.progress)+'%</span>'+
         '</span>'+
         '<span class="tacts">'+
           '<button class="iconbtn" data-act="expand" title="Fechas y notas">⚙</button>'+
-          '<button class="iconbtn del" data-act="del" title="Eliminar">✕</button>'+
+          (editable?'<button class="iconbtn del" data-act="del" title="Eliminar">✕</button>':'')+
         '</span>'+
       '</div>'+
       '<div class="tdetail">'+
-        '<div class="fld"><label>Inicio</label><input type="date" value="'+t.start+'" data-fld="start"></div>'+
-        '<div class="fld"><label>Fin</label><input type="date" value="'+t.end+'" data-fld="end"></div>'+
-        '<div class="fld"><label>Notas</label><textarea data-fld="notes" placeholder="Notas, links, bloqueos...">'+escapeHtml(t.notes||"")+'</textarea></div>'+
+        '<div class="fld"><label>Inicio</label><input type="date" '+(editable?'':'disabled ')+'value="'+t.start+'" data-fld="start"></div>'+
+        '<div class="fld"><label>Fin</label><input type="date" '+(editable?'':'disabled ')+'value="'+t.end+'" data-fld="end"></div>'+
+        '<div class="fld"><label>Notas</label><textarea '+(editable?'':'disabled ')+'data-fld="notes" placeholder="Notas, links, bloqueos...">'+escapeHtml(t.notes||"")+'</textarea></div>'+
       '</div>'+
     '</div>'+
   '</div>';
@@ -567,7 +590,7 @@ function renderBoard(){
       '</div>'+
       '<div class="body">'+
         (ts.length? ts.map(taskHTML).join("") : '<div style="color:var(--muted2);font-size:12.5px;padding:10px">Sin tareas que coincidan con el filtro.</div>')+
-        '<button class="addTask" data-addw="'+sp.w+'">+ Agregar tarea a este sprint</button>'+
+        (editable?'<button class="addTask" data-addw="'+sp.w+'">+ Agregar tarea a este sprint</button>':'')+
       '</div>';
     root.appendChild(wrap);
   });
@@ -618,18 +641,20 @@ document.getElementById("boardView").addEventListener("click",e=>{
   const head=e.target.closest(".head");
   if(head){ const w=+head.dataset.w; if(openSet.has(w)) openSet.delete(w); else openSet.add(w); renderBoard(); return; }
   const addBtn=e.target.closest("[data-addw]");
-  if(addBtn){ const w=+addBtn.dataset.addw; const nt=T(w,"Nueva tarea","","equipo","task",0); nt.id="t"+Date.now(); state.tasks.push(nt); openSet.add(w); save(); renderBoard(); renderTop(); return; }
+  if(addBtn){ if(!editable) return; const w=+addBtn.dataset.addw; const nt=T(w,"Nueva tarea","","equipo","task",0); nt.id="t"+Date.now(); state.tasks.push(nt); openSet.add(w); save(); renderBoard(); renderTop(); return; }
   const act=e.target.closest("[data-act]"); if(!act) return;
   const taskEl=act.closest(".task"); const id=taskEl.dataset.id; const t=getTask(id); if(!t) return;
   const a=act.dataset.act;
+  if(a==="expand"){ taskEl.classList.toggle("expanded"); return; }
+  if(!editable){ toast("Estás en solo lectura. Pulsa '🔒 Solo lectura — editar' e ingresa la clave."); return; }
   if(a==="toggle"){ t.done=!t.done; if(t.done) t.progress=100; save(); renderBoard(); renderTop(); }
-  else if(a==="expand"){ taskEl.classList.toggle("expanded"); }
   else if(a==="del"){ if(confirm("¿Eliminar esta tarea?")){ state.tasks=state.tasks.filter(x=>x.id!==id); save(); renderBoard(); renderTop(); } }
 });
 
 // edición inline (input para range/select/date, blur para contenteditable/textarea)
 document.getElementById("boardView").addEventListener("input",e=>{
   const f=e.target.dataset.fld; if(!f) return;
+  if(!editable) return;
   const taskEl=e.target.closest(".task"); const t=getTask(taskEl.dataset.id); if(!t) return;
   if(f==="progress"){ t.progress=+e.target.value; if(t.progress===100) t.done=true; else if(t.done&&t.progress<100) t.done=false;
     taskEl.querySelector(".pv").textContent=t.progress+"%";
@@ -639,12 +664,14 @@ document.getElementById("boardView").addEventListener("input",e=>{
 });
 document.getElementById("boardView").addEventListener("change",e=>{
   const f=e.target.dataset.fld; if(!f) return;
+  if(!editable) return;
   const taskEl=e.target.closest(".task"); const t=getTask(taskEl.dataset.id); if(!t) return;
   if(f==="champ"){ t.champ=e.target.value; save(); renderBoard(); renderGantt(); }
   else if(f==="start"||f==="end"){ t[f]=e.target.value; save(); }
 });
 document.getElementById("boardView").addEventListener("blur",e=>{
   const f=e.target.dataset.fld; if(!f) return;
+  if(!editable) return;
   const taskEl=e.target.closest(".task"); const t=getTask(taskEl.dataset.id); if(!t) return;
   if(f==="title"){ t.title=e.target.textContent.trim(); save(); }
   else if(f==="lead"){ t.lead=e.target.textContent.trim(); save(); }
@@ -672,7 +699,8 @@ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>switchView(b.dataset.
 document.getElementById("onlyPending").onchange=e=>{ onlyPending=e.target.checked; renderBoard(); renderGantt(); };
 document.getElementById("expandAll").onclick=()=>{ openSet=new Set(SPRINTS.map(s=>s.w)); renderBoard(); };
 document.getElementById("collapseAll").onclick=()=>{ openSet=new Set(); renderBoard(); };
-document.getElementById("addSprintTaskTop").onclick=()=>{ const w=currentWeek()||1; const nt=T(w,"Nueva tarea","","equipo","task",0); nt.id="t"+Date.now(); state.tasks.push(nt); openSet.add(w); switchView("board"); save(); renderBoard(); renderTop(); const n=document.getElementById("sprint-"+w); if(n)n.scrollIntoView({behavior:"smooth",block:"center"}); };
+document.getElementById("addSprintTaskTop").onclick=()=>{ if(!editable) return; const w=currentWeek()||1; const nt=T(w,"Nueva tarea","","equipo","task",0); nt.id="t"+Date.now(); state.tasks.push(nt); openSet.add(w); switchView("board"); save(); renderBoard(); renderTop(); const n=document.getElementById("sprint-"+w); if(n)n.scrollIntoView({behavior:"smooth",block:"center"}); };
+document.getElementById("lockBtn").onclick=()=>{ if(editable) lockEditing(); else tryUnlock(); };
 document.getElementById("printBtn").onclick=()=>window.print();
 
 document.getElementById("exportBtn").onclick=()=>{
@@ -695,9 +723,11 @@ function toast(m){ const el=document.getElementById("toast"); el.textContent=m; 
 function renderAll(){ renderTop(); renderChips(); renderBoard(); renderGantt(); renderSaveState(); }
 
 function startApp(){
+  try{ editable = (localStorage.getItem("skandia_edit")==="1"); }catch(e){ editable=false; }
   const cw=currentWeek(); openSet=new Set([cw>0?cw:1]);
   renderAll();
   switchView("board");
+  applyMode();
 }
 
 function startCloud(){
